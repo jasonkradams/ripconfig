@@ -1,0 +1,115 @@
+#!/usr/bin/python
+
+# Title: Script: ripconfig.py Extract Objects from Config Files
+#
+# This script will parse through BIG-IP configuration files and extract common elements.
+#
+# Usage:
+# --- Code
+#./ripconfig.py -s 'gtm wideip' /var/tmp/generated-bigip_gtm.conf
+# ---
+#
+# --- Code
+#   ripconfig.py -h
+#   usage: ripconfig.py [-h] [-d DELIMITER] -s STRING
+#                       [configfile [configfile ...]]
+#    
+#   positional arguments:
+#     configfile            Config File to Parse
+#    
+#   optional arguments:
+#     -h, --help            show this help message and exit
+#     -d DELIMITER, --delimiter DELIMITER
+#                           Ending Delimiter; Default: ^}
+#     -s STRING, --string STRING
+#                           regex string to search in config file for
+# ---
+#
+#
+# Error Handling:
+# Built-in error handling should allow for straight-forward troubleshooting of this script.
+#
+# --- Code
+#$ ripconfig.py
+#usage: ripconfig.py [-h] [-d DELIMITER] -s STRING
+#                    [configfile [configfile ...]]
+#ripconfig.py: error: argument -s/--string is required
+# ---
+#
+#Example:
+#Extract all BIG-IP DNS WideIP's from a given configuration file.
+#
+# --- Code
+#[root@jadams-gw-01:Active:Standalone] config # /var/tmp/ripconfig.py bigip_gtm.conf -s 'gtm wideip'
+#gtm wideip a /Common/blount.jadams {
+#    load-balancing-decision-log-verbosity { pool-selection pool-traversal pool-member-selection pool-member-traversal }
+#    pools {
+#        /Common/blount_pool {
+#            order 0
+#        }
+#    }
+#}
+#
+#gtm wideip a /Common/ripconfig.py { }
+# ---
+#
+#
+
+# Import future print functionality to use "end=''"
+from __future__ import print_function
+
+# We need options!
+import argparse
+import re
+import sys
+
+# Create and parse options
+parser = argparse.ArgumentParser()
+parser.add_argument("configfile", type=str, nargs='*', help="Config File to Parse")
+parser.add_argument("-d", "--delimeter", type=str, default="^}", help="Ending Delimeter; Default: ^}")
+parser.add_argument("-s", "--string", type=str, required=True, help="regex string to search in config file for.")
+
+args = parser.parse_args()
+
+# Want to know more?
+debug = 0
+
+if debug:
+  print('#' * 30, 'DEBUGGING', '#' * 30)
+  for n in args.configfile:
+    print(n)
+  print('delimeter = ' + args.delimeter)
+  print('string = ' + args.string)
+  quit()
+
+exitcode = 1
+# Iterate through all specified config files
+#  printing from the matched string to the ending delimeter.
+for n in args.configfile:
+  with open(n, 'r') as f:
+    printing = False
+    for line in f:
+      if re.search(args.string, line) or printing:
+        exitcode = 0
+        if re.search(args.delimeter, line):
+          printing = False
+          print(line)
+          continue
+        printing = True
+        print(line, end='')
+
+if not sys.stdin.isatty():
+  printing = False
+  for line in sys.stdin:
+    if re.search(args.string, line) or printing:
+      exitcode = 0
+      if re.search(args.delimeter, line):
+        printing = False
+        print(line)
+        continue
+      printing = True
+      print(line, end='')
+
+if exitcode:
+    sys.exit(1)
+    #sys.exit('No results found!')
